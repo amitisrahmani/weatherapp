@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <script>
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    function deleteCity(cityName) {
+        fetch(`/delete_city/${cityName}/`, { 
+            method: "DELETE",
+            headers: { 
+                "X-CSRFToken": getCSRFToken(),
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, "is-success");
+                document.getElementById(`city-card-${cityName}`).remove();
+            } else {
+                showNotification("Error deleting city", "is-danger");
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            showNotification("An unexpected error occurred", "is-danger");
+        });
+    }
+
+    function showNotification(message, type) {
+        const notificationBanner = document.getElementById("notification-banner");
+        const notification = document.createElement("div");
+        notification.className = `notification ${type} has-text-white`;
+        notification.innerHTML = `
+            <button class="delete" onclick="this.parentElement.remove();"></button>
+            ${message}
+        `;
+        notificationBanner.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".notification .delete").forEach(button => {
+            button.addEventListener("click", function () {
+                this.parentElement.remove();
+            });
+        });
+    });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .header {
+            background-color: #00C4A7;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .logo {
+            position: absolute;
+            left: 20px;
+            top: 10px;
+            height: 50px;
+        }
+
+        .weather-banner {
+            background-color: #3B82F6;
+            color: white;
+            padding: 10px;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .weather-banner marquee {
+            font-weight: bold;
+        }
+
+        .search-section {
+            background: url("{% static 'images/metofficegov.jpg' %}") no-repeat center center;
+            background-size: cover;
+            padding: 40px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .search-container {
+            display: flex;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <img src="{% static 'images/logo.png' %} alt= "logo" class="logo">
+    My Weather Report (Unknown User)
+</header>
+
+<!-- Scrolling Marquee Weather Banner -->
+<section class="weather-banner">
+    <marquee behavior="scroll" direction="left">
+        Guildford Now: {{ guildford_weather.temperature|default:"N/A" }}°C {{ guildford_weather.description|default:"No data" }};
+    </marquee>
+</section>
+
+<!-- Search Bar -->
+<section class="search-section">
+    <div class="search-container">
+        <form method="POST" action="{% url 'add_city' %}" class="field has-addons">
+            {% csrf_token %}
+            <div class="control">
+                <input type="text" name="city_name" class="input" placeholder="City Name" required>
+            </div>
+            <div class="control">
+                <button type="submit" class="button is-info">Add City</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- Notification Banner -->
+<section id="notification-banner" class="notification-banner">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="notification is-{{ message.tags }} has-text-white">
+                <button class="delete"></button>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+</section>
+
+<!-- Weather Cards -->
+<section class="weather-cards">
+    {% for weather in user_weather %}
+        <div class="card" id="city-card-{{ weather.city }}">
+            <div class="card-content has-text-centered">
+                <button class="delete-btn" onclick="deleteCity('{{ weather.city }}')">✖</button>
+                <p class="title">{{ weather.city }}</p>
+                <img src="http://openweathermap.org/img/wn/{{ weather.icon }}@2x.png" alt="{{ weather.city }} weather icon">
+                <p>{{ weather.temperature }}°C</p>
+                <p>{{ weather.description }}</p>
+            </div>
+        </div>
+    {% endfor %}
+</section>
+
+</body>
+</html>
